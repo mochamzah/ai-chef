@@ -3,13 +3,16 @@
 import React, { useState, KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Search, X, Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Search, X, Loader2, UtensilsCrossed, Egg, Fish, Leaf, Beef } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function IngredientInput() {
     const router = useRouter()
     const [inputValue, setInputValue] = useState('')
     const [ingredients, setIngredients] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [isFocused, setIsFocused] = useState(false)
 
     const addIngredient = (value: string) => {
         const trimmed = value.trim().replace(/,$/, '')
@@ -34,22 +37,18 @@ export function IngredientInput() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-
-        // Add current input value as ingredient if it's not empty before submitting
         if (inputValue.trim()) {
-            const trimmed = inputValue.trim().replace(/,$/, '')
-            if (trimmed && !ingredients.includes(trimmed)) {
-                const newIngredients = [...ingredients, trimmed]
-                setIngredients(newIngredients)
-                if (newIngredients.length >= 2) {
-                    performRedirect(newIngredients)
-                }
-                return
-            }
+            addIngredient(inputValue)
         }
+        if (ingredients.length < 2 && !inputValue.trim()) return
 
-        if (ingredients.length < 2) return
-        performRedirect(ingredients)
+        const finalIngredients = inputValue.trim()
+            ? [...ingredients, inputValue.trim().replace(/,$/, '')]
+            : ingredients
+
+        if (finalIngredients.length >= 2) {
+            performRedirect(finalIngredients)
+        }
     }
 
     const performRedirect = (ingredientsList: string[]) => {
@@ -58,78 +57,98 @@ export function IngredientInput() {
         router.push(`/results?ingredients=${query}`)
     }
 
+    const popularPairings = [
+        { name: 'Ayam', icon: <Beef className="h-3 w-3" /> },
+        { name: 'Telur', icon: <Egg className="h-3 w-3" /> },
+        { name: 'Ikan', icon: <Fish className="h-3 w-3" /> },
+        { name: 'Sayur', icon: <Leaf className="h-3 w-3" /> },
+    ]
+
     return (
-        <div className="w-full max-w-2xl mx-auto px-4">
-            <div className="flex flex-col gap-4">
+        <div className="w-full max-w-2xl mx-auto">
+            <div className="flex flex-col gap-6">
                 {/* Input Area */}
-                <div className="relative group">
-                    <div className="flex flex-wrap items-center gap-2 p-2 min-h-[3.5rem] bg-white rounded-2xl shadow-lg border border-zinc-100 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/20 transition-all">
-                        <div className="pl-2 text-zinc-400">
-                            <Search className="h-5 w-5" />
-                        </div>
+                <div className={cn(
+                    "relative flex flex-wrap items-center gap-2 p-3 min-h-[4rem] bg-white rounded-2xl border transition-all duration-300",
+                    isFocused
+                        ? "border-orange-500 ring-4 ring-orange-500/10 shadow-[0_0_20px_rgba(234,88,12,0.1)]"
+                        : "border-zinc-200 shadow-sm"
+                )}>
+                    <div className="pl-2 text-zinc-400">
+                        <Search className="h-5 w-5" />
+                    </div>
 
-                        {/* Chips */}
-                        {ingredients.map((ing, idx) => (
-                            <span
-                                key={idx}
-                                className="flex items-center gap-1.5 px-3 py-1 bg-orange-50 text-orange-700 text-sm font-medium rounded-lg border border-orange-100 animate-in fade-in zoom-in duration-200"
+                    {/* Chips / Badges */}
+                    {ingredients.map((ing, idx) => (
+                        <Badge
+                            key={idx}
+                            variant="orange"
+                            className="pl-3 pr-1.5 py-1 gap-1 text-sm animate-in fade-in zoom-in duration-200"
+                        >
+                            {ing}
+                            <button
+                                type="button"
+                                onClick={() => removeIngredient(idx)}
+                                className="p-0.5 hover:bg-orange-200 rounded-full transition-colors"
                             >
-                                {ing}
-                                <button
-                                    type="button"
-                                    onClick={() => removeIngredient(idx)}
-                                    className="hover:text-orange-900 rounded-full transition-colors"
-                                >
-                                    <X className="h-3.5 w-3.5" />
-                                </button>
-                            </span>
-                        ))}
+                                <X className="h-3 w-3" />
+                            </button>
+                        </Badge>
+                    ))}
 
-                        <input
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onBlur={() => addIngredient(inputValue)}
-                            disabled={isLoading}
-                            placeholder={ingredients.length === 0 ? "Masukkan bahan (pisahkan dengan koma atau Enter)" : ""}
-                            className="flex-1 min-w-[120px] h-10 bg-transparent border-none outline-none text-zinc-900 placeholder:text-zinc-400 disabled:opacity-50"
-                        />
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => {
+                            setIsFocused(false)
+                            if (inputValue.trim()) addIngredient(inputValue)
+                        }}
+                        disabled={isLoading}
+                        placeholder={ingredients.length === 0 ? "Masukkan bahan (cth: ayam, telur)" : ""}
+                        className="flex-1 min-w-[150px] h-10 bg-transparent border-none outline-none text-zinc-900 placeholder:text-zinc-400 font-medium"
+                    />
+                </div>
+
+                {/* Popular Pairings */}
+                <div className="flex flex-col gap-3">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">Bahan Populer</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                        {popularPairings.map((pair) => (
+                            <button
+                                key={pair.name}
+                                type="button"
+                                onClick={() => addIngredient(pair.name)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 hover:bg-orange-50 text-zinc-600 hover:text-orange-700 text-xs font-bold rounded-full border border-zinc-100 hover:border-orange-200 transition-all"
+                            >
+                                {pair.icon}
+                                {pair.name}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                {/* Validation & Submit */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-sm text-zinc-500 font-medium">
-                        {ingredients.length < 2 ? (
-                            <span className="text-zinc-400">Minimal masukkan 2 bahan masakan.</span>
-                        ) : (
-                            <span className="text-emerald-600 flex items-center gap-1">
-                                ✓ {ingredients.length} bahan siap diolah!
-                            </span>
-                        )}
-                    </p>
-
+                {/* Submit Action */}
+                <div className="flex justify-center mt-2">
                     <Button
                         onClick={handleSubmit}
                         disabled={(ingredients.length < 2 && !inputValue.trim()) || isLoading}
-                        className="w-full sm:w-auto h-12 px-8 rounded-xl font-bold gap-2 shadow-orange-200"
+                        size="lg"
+                        className="h-14 px-12 rounded-2xl font-black text-lg gap-2 bg-zinc-900 shadow-xl shadow-zinc-200 hover:scale-105 transition-transform active:scale-95"
                     >
                         {isLoading ? (
-                            <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Sabar ya...
-                            </>
+                            <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                            'Buat Ide Menu'
+                            <>
+                                <UtensilsCrossed className="h-5 w-5" />
+                                Racik Menu Sekarang
+                            </>
                         )}
                     </Button>
                 </div>
             </div>
-
-            <p className="mt-4 text-center text-xs text-zinc-400">
-                Tips: Tekan <span className="px-1.5 py-0.5 bg-zinc-100 rounded border">Enter</span> atau <span className="px-1.5 py-0.5 bg-zinc-100 rounded border">,</span> untuk menambah bahan.
-            </p>
         </div>
     )
 }

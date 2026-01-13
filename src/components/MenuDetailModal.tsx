@@ -1,125 +1,112 @@
-'use client'
+"use client"
 
-import React, { useEffect } from 'react'
-import { X, Clock, ChefHat, CheckCircle2 } from 'lucide-react'
-import { MenuIdea } from '@/types/menu'
-import { cn } from '@/lib/utils'
-import { Button } from './ui/button'
+import { X, Utensils, Info } from "lucide-react"
+import { MenuIdea } from "@/types/menu"
+import { Button } from "@/components/ui/button"
 
-interface MenuDetailModalProps {
-    menu: MenuIdea | null
+type Props = {
+    menu: MenuIdea
     onClose: () => void
 }
 
-export function MenuDetailModal({ menu, onClose }: MenuDetailModalProps) {
-    // Prevent body scroll when modal is open
-    useEffect(() => {
-        if (menu) {
-            document.body.style.overflow = 'hidden'
-        } else {
-            document.body.style.overflow = 'unset'
-        }
-        return () => {
-            document.body.style.overflow = 'unset'
-        }
-    }, [menu])
-
-    if (!menu) return null
-
-    const difficultyStyles = {
-        mudah: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-        sedang: 'bg-orange-50 text-orange-700 border-orange-100',
-    }
-
+export default function MenuDetailModal({ menu, onClose }: Props) {
     return (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm animate-in fade-in duration-300"
-                onClick={onClose}
-            />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm">
+            <div className="relative w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in duration-300">
+                {/* Close */}
+                <button
+                    onClick={onClose}
+                    className="absolute right-6 top-6 rounded-full p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors"
+                >
+                    <X className="h-5 w-5" />
+                </button>
 
-            {/* Modal Container */}
-            <div className={cn(
-                "relative w-full max-w-2xl bg-white shadow-2xl overflow-hidden",
-                "rounded-t-[2.5rem] sm:rounded-3xl", // Bottom sheet mobile, rounded desktop
-                "animate-in slide-in-from-bottom sm:zoom-in duration-300",
-                "max-h-[90vh] flex flex-col"
-            )}>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-6 py-4 flex items-center justify-between">
-                    <h2 className="text-xl font-extrabold text-zinc-900 line-clamp-1">{menu.title}</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
-                    >
-                        <X className="h-6 w-6" />
-                    </button>
-                </div>
+                <h2 className="text-2xl font-black text-zinc-900 leading-tight pr-8">
+                    {menu.title || "Detail Menu"}
+                </h2>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-                    <div className="flex flex-wrap items-center gap-4 mb-8">
-                        <span className={cn(
-                            "px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider",
-                            difficultyStyles[menu.difficulty]
-                        )}>
-                            {menu.difficulty}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold text-zinc-500">
-                            <Clock className="h-4 w-4 text-orange-500" />
-                            <span>{menu.duration}</span>
-                        </div>
+                <div className="space-y-6">
+                    {/* Story / Description */}
+                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                        <h4 className="flex items-center gap-2 font-bold text-orange-700 mb-2 text-xs uppercase tracking-wide">
+                            <Utensils className="h-4 w-4" />
+                            Cerita Dibalik Menu
+                        </h4>
+                        <p className="text-zinc-700 italic text-sm leading-relaxed">
+                            "{menu.description}"
+                        </p>
                     </div>
 
-                    <div className="space-y-6">
+                    {/* Stats */}
+                    <div className="flex gap-4 text-sm font-bold text-zinc-400 uppercase tracking-widest border-y border-zinc-100 py-4 justify-between">
+                        <div className="flex gap-4">
+                            <span className="flex items-center gap-2 text-zinc-600">🔪 {menu.prep_time || 0}m</span>
+                            <span className="text-zinc-200">|</span>
+                            <span className="flex items-center gap-2 text-zinc-600">🍳 {menu.cook_time || 0}m</span>
+                        </div>
+                        <span className="flex items-center gap-2">🔥 {menu.difficulty || "Sedang"}</span>
+                    </div>
+
+                    {/* Used Ingredients */}
+                    {menu.used_ingredients && menu.used_ingredients.length > 0 && (
                         <div>
-                            <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <ChefHat className="h-4 w-4 text-orange-500" />
-                                Langkah Detail (Pemula)
-                            </h3>
-                            <div className="space-y-6">
-                                {menu.steps_full.map((step, index) => (
-                                    <div key={index} className="flex gap-4 group">
-                                        <div className="flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-orange-50 text-orange-600 text-sm font-bold group-hover:bg-orange-600 group-hover:text-white transition-colors duration-300">
-                                            {index + 1}
-                                        </div>
-                                        <p className="text-zinc-600 font-medium leading-relaxed pt-1">
-                                            {step}
-                                        </p>
-                                    </div>
+                            <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-zinc-400">Bahan Terpakai</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {menu.used_ingredients.map((ing, i) => (
+                                    <span key={i} className="rounded-full bg-zinc-50 px-3 py-1.5 text-[11px] font-bold text-zinc-600 border border-zinc-100">
+                                        {ing}
+                                    </span>
                                 ))}
                             </div>
                         </div>
+                    )}
+
+                    {/* Steps */}
+                    <div>
+                        <h3 className="mb-4 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Langkah Memasak
+                        </h3>
+
+                        {menu.steps_detail && menu.steps_detail.length > 0 ? (
+                            <ol className="space-y-4">
+                                {menu.steps_detail.map((step, index) => (
+                                    <li key={index} className="flex gap-4 text-sm text-zinc-700 leading-relaxed">
+                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[10px] font-black text-orange-600 border border-orange-200 shadow-sm">
+                                            {index + 1}
+                                        </span>
+                                        <span className="pt-0.5">{step}</span>
+                                    </li>
+                                ))}
+                            </ol>
+                        ) : (
+                            <p className="text-sm text-zinc-400 italic">Chef sedang menulis langkah demi langkah...</p>
+                        )}
                     </div>
 
-                    {menu.tips && (
-                        <div className="mt-12 p-6 rounded-[2rem] bg-orange-50 border border-orange-100/50 shadow-inner relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                                <CheckCircle2 className="h-20 w-20 text-orange-900" />
-                            </div>
-                            <div className="relative">
-                                <h4 className="flex items-center gap-2 text-xs font-bold text-orange-800 uppercase tracking-widest mb-2">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Rahasia Chef
-                                </h4>
-                                <p className="text-orange-900 font-bold italic leading-relaxed">
-                                    "{menu.tips}"
-                                </p>
-                            </div>
+                    {/* Chef's Secret Notes */}
+                    <div className="bg-zinc-900 text-white p-5 rounded-xl shadow-lg shadow-zinc-200 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Info className="h-24 w-24" />
                         </div>
-                    )}
+                        <h4 className="flex items-center gap-2 font-bold text-orange-400 mb-2 text-xs uppercase tracking-wide relative z-10">
+                            <Info className="h-4 w-4" />
+                            Rahasia Chef
+                        </h4>
+                        <p className="text-zinc-300 text-sm leading-relaxed font-medium relative z-10">
+                            {menu.chef_notes}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-zinc-100 bg-zinc-50/50">
-                    <Button
-                        onClick={onClose}
-                        className="w-full rounded-2xl h-12 font-bold text-lg"
-                    >
-                        Tutup
-                    </Button>
-                </div>
+                <Button
+                    onClick={onClose}
+                    className="mt-10 h-14 w-full rounded-2xl font-black text-base bg-zinc-900"
+                >
+                    Siap Memasak!
+                </Button>
             </div>
         </div>
     )

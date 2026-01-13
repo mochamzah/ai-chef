@@ -1,99 +1,120 @@
-import { NextRequest, NextResponse } from "next/server"
-import OpenAI from "openai"
-import { MenuIdea } from "@/types/menu"
+import { MenuIdeaSchema } from "@/types/menu"
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-})
+export const maxDuration = 90;
+export const runtime = 'nodejs';
 
-export async function POST(req: NextRequest) {
+const SYSTEM_PROMPT = `
+# Role: AI Chef Consultant (Nusantara Specialist)
+
+## Profile
+Anda adalah Executive Chef dari brand "Geprek Mae". Spesialisasi Anda adalah menciptakan menu Nusantara modern yang "extra crispy", praktis untuk delivery, dan memiliki nilai jual tinggi (mid-tier positioning).
+
+## Output Guidelines (JSON Strategy)
+Setiap resep yang dihasilkan harus melalui proses penalaran berikut:
+1. **Analisis Bahan**: Identifikasi rasa dasar dari bahan input.
+2. **Branding Name**: Buat nama menu yang menggugah selera menggunakan kata sifat kuliner (misal: "Ayam Krispi Sambal Embe Bali" bukan hanya "Ayam Sambal").
+3. **The 'Chef's Secret'**: Berikan satu tips teknik (Pro-Tip) yang memastikan tekstur atau rasa tetap premium (misal: suhu minyak, teknik pemotongan).
+
+## Schema Content:
+- title: Nama menu yang kreatif & komersial.
+- description: Penjelasan singkat 1-2 kalimat yang menjual (storytelling).
+- match_percentage: Logika kecocokan bahan yang akurat (0-100).
+- chef_notes: Tips rahasia agar masakan selevel restoran mid-tier.
+- steps_detail: Langkah memasak yang sangat mendetail namun mudah diikuti (maksimal 5-7 langkah).
+- prep_time: Waktu persiapan/marinasi (menit).
+- cook_time: Waktu memasak aktif (menit).
+- difficulty: Tingkat kesulitan (Mudah/Sedang/Sulit).
+- used_ingredients: Array bahan yang digunakan dari input.
+
+CONSTRAINTS:
+1. No generic names.
+2. Speed optimization.
+3. Max 7 steps per menu for detail.
+4. Language: Professional but relaxed Indonesian.
+
+OUTPUT FORMAT:
+JANGAN gunakan markdown. Kembalikan JSON object murni.
+Pastikan field 'menus' adalah array.
+Contoh: { "menus": [...] }
+`;
+
+export async function POST(req: Request) {
     try {
-        const { ingredients } = await req.json()
-
-        if (!ingredients || ingredients.length < 2) {
-            return NextResponse.json(
-                { error: "Minimal 2 bahan" },
-                { status: 400 }
-            )
+        if (!process.env.OPENROUTER_API_KEY) {
+            throw new Error("Missing OPENROUTER_API_KEY in environment variables");
         }
 
-        // =========================
-        // 👉 PROMPT FINAL DIMULAI DI SINI
-        // =========================
-        const systemPrompt = `
-Kamu adalah CHEF RUMAHAN INDONESIA yang berpengalaman memasak harian.
-Fokus pada masakan rumahan yang praktis, masuk akal, dan mudah dimasak.
-Jawaban HARUS dalam format JSON valid. Jangan tambahkan teks lain.
-`
+        const { ingredients } = await req.json()
+        console.log("Ingredients received at backend:", ingredients);
 
-        const userPrompt = `
-BAHAN YANG TERSEDIA:
-${ingredients.join(", ")}
+        if (!ingredients || ingredients.length < 2) {
+            return new Response(JSON.stringify({ error: "Minimal 2 bahan diperlukan" }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
 
-TUGAS:
-Buatkan TEPAT 3 (TIGA) menu masakan rumahan Indonesia yang BERBEDA SATU SAMA LAIN.
+        console.log("Fetching from OpenRouter with google/gemini-3-flash-preview (Raw Fetch)...");
 
-ATURAN WAJIB:
-1. Gunakan gaya masakan rumahan Indonesia.
-2. Jangan menambahkan bahan yang tidak umum.
-3. Boleh menambahkan bumbu dasar (garam, gula, bawang, minyak).
-4. Hindari menu aneh, fusion, atau teknik mahal.
-5. Cocok untuk orang awam / pemula.
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                "HTTP-Referer": "http://localhost:3000",
+                "X-Title": "AI Chef",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "google/gemini-3-flash-preview",
+                "messages": [
+                    { "role": "system", "content": SYSTEM_PROMPT },
+                    { "role": "user", "content": `Bahan: ${ingredients.join(", ")}` }
+                ],
+                "response_format": { "type": "json_object" }
+            })
+        });
 
-OUTPUT (JSON SAJA):
+        if (!response.ok) {
+            const errBody = await response.text();
+            console.error("OpenRouter Error:", errBody);
+            throw new Error(`OpenRouter responded with ${response.status}: ${errBody}`);
+        }
 
-[
-  {
-    "id": "1",
-    "title": "Nama menu yang umum di Indonesia",
-    "duration": "20 menit",
-    "difficulty": "mudah",
-    "steps_short": [
-      "Tumis bawang, masukkan ayam dan kangkung, lalu beri kecap."
-    ],
-    "steps_full": [
-      "Siapkan semua bahan agar proses memasak lebih cepat.",
-      "Panaskan sedikit minyak di wajan dengan api sedang.",
-      "Tumis bawang putih dan bawang merah hingga harum.",
-      "Masukkan potongan ayam, aduk hingga berubah warna.",
-      "Tambahkan kangkung yang sudah dicuci bersih.",
-      "Tuangkan kecap manis secukupnya dan aduk rata.",
-      "Masak 2–3 menit hingga kangkung layu, lalu angkat.",
-      "Sajikan selagi hangat."
-    ],
-    "tips": "Jangan masak kangkung terlalu lama agar tetap hijau dan renyah."
-  }
-]
-`
-        // =========================
-        // 👉 PROMPT FINAL SELESAI
-        // =========================
+        const data = await response.json();
+        const content = data.choices[0]?.message?.content;
 
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            temperature: 0.6,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-            ],
+        console.log("Raw AI Output:", content);
+
+        if (!content) {
+            throw new Error("No content received from AI");
+        }
+
+        // Parse JSON content
+        let parsedContent;
+        try {
+            parsedContent = JSON.parse(content);
+        } catch (e) {
+            console.error("JSON Parse Error:", e);
+            throw new Error("Failed to parse AI response as JSON");
+        }
+
+        // Validate structure (Optional but recommended)
+        if (!parsedContent.menus || !Array.isArray(parsedContent.menus)) {
+            // Fallback: if AI returned array directly
+            if (Array.isArray(parsedContent)) {
+                parsedContent = { menus: parsedContent };
+            } else {
+                console.warn("Unexpected JSON structure, returning raw object");
+            }
+        }
+
+        return Response.json(parsedContent);
+
+    } catch (error: any) {
+        console.error("FULL ERROR STACK:", error)
+        return new Response(JSON.stringify({ error: "Gagal meracik resep: " + error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
         })
-
-        const raw = completion.choices[0].message.content
-        if (!raw) throw new Error("AI response kosong")
-
-        // parsing aman (defensive)
-        const jsonStart = raw.indexOf("[")
-        const jsonEnd = raw.lastIndexOf("]") + 1
-        const cleanJson = raw.slice(jsonStart, jsonEnd)
-
-        const menus: MenuIdea[] = JSON.parse(cleanJson)
-
-        return NextResponse.json(menus)
-    } catch (error) {
-        console.error("GENERATE MENU ERROR:", error)
-        return NextResponse.json(
-            { error: "Gagal generate menu" },
-            { status: 500 }
-        )
     }
 }
